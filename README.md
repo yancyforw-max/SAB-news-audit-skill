@@ -1,4 +1,3 @@
-# SAB-news-audit-skill
 # SAB News Audit Skill
 
 面向 SAB“星系列”新闻稿的 Codex 审核 Skill。
