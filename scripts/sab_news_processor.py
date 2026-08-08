@@ -282,6 +282,14 @@ def _is_meeting_article(title):
     return _contains_any(title, ("会议", "座谈会", "研讨会", "交流会", "工作会", "培训会", "总结会", "部署会"))
 
 
+def _is_credit_line(line):
+    """识别文末责任信息行，避免将供稿人等姓名纳入人物称谓检查。"""
+    return bool(re.match(
+        r"^\s*(?:文字|撰稿|供稿|摄影|摄像|配图|图片|编辑|排版|审核|审校)\s*[:：/／\-—]?\s*\S+",
+        line,
+    ))
+
+
 def _result(rule_id, category, item, status, evidence, basis, tips, level="硬性规则"):
     """建立统一校验记录；status 仅使用四种固定值。"""
     return {
@@ -349,7 +357,8 @@ def _general_checks(article_text, column_type, title, body, lines):
         "删除联系方式及可识别个人信息；确需公开时先完成授权与匿名处理。",
     ))
 
-    sensitive_words = [word for word in ("经营", "财务", "人事", "资产", "生产技术", "客户", "订单", "市场策略") if word in article_text]
+    # “客户”本身可能只是正常客情维护或生活化往来，不作为内部敏感关键词。
+    sensitive_words = [word for word in ("经营", "财务", "人事", "资产", "生产技术", "订单", "市场策略") if word in article_text]
     warning = "内部通讯稿，禁止对外转发"
     warning_ok = _has_internal_warning(article_text)
     results.append(_result(
@@ -387,6 +396,37 @@ def _general_checks(article_text, column_type, title, body, lines):
         "已检出：" + ("、".join(credit_fields) if credit_fields else "无"),
         "模块3 七、文末供稿信息；模块7 二十五、责任信息与审核流程检查",
         "在文末补齐文字、摄影或配图、编辑或排版、审核等责任信息；允许使用含义对应的词汇，分隔形式不限。",
+    ))
+
+    body_lines = [line for line in lines[1:] if not _is_credit_line(line)]
+    body_for_people = "\n".join(body_lines)
+    person_end = r"(?=[，。；、]|表示|介绍|指出|认为|负责|参与|开展|完成|分享|汇报|提出|随后|为|$)"
+
+    wrong_assistant_abbreviations = []
+    assistant_pattern = re.compile(r"经理助理(?P<name>[\u4e00-\u9fff]{2,3})" + person_end)
+    for match in assistant_pattern.finditer(body_for_people):
+        name = match.group("name")
+        wrong_abbreviation = name[0] + "助理"
+        if wrong_abbreviation in body_for_people[match.end():]:
+            wrong_assistant_abbreviations.append(f"{name}后文简称为“{wrong_abbreviation}”")
+    results.append(_result(
+        "G11", "人物称谓", "经理助理后续简称为“姓＋经理”",
+        "需整改" if wrong_assistant_abbreviations else "通过",
+        "；".join(wrong_assistant_abbreviations[:3]) if wrong_assistant_abbreviations else "未检出经理助理被简称为“姓＋助理”",
+        "模块4 二、姓名和职务；补充执行口径：人物首次介绍与后续简称",
+        "经理助理首次写明部门、完整职务和姓名，后续使用“姓＋经理”；例如“xx部经理助理路人甲”后文简称“路经理”。",
+    ))
+
+    specialist_pattern = re.compile(
+        r"部[^，。；\n]{0,8}专员[\u4e00-\u9fff]{2,3}" + person_end
+    )
+    specialist_hits = [line for line in body_lines if specialist_pattern.search(line)]
+    results.append(_result(
+        "G12", "人物称谓", "无管理职务人物首次出现仅写部门和姓名",
+        "需整改" if specialist_hits else "通过",
+        "；".join(specialist_hits[:3]) if specialist_hits else "未检出“部门＋专员称谓＋姓名”的过度介绍",
+        "模块4 二、姓名和职务；补充执行口径：普通人物首次介绍",
+        "删除无管理职务人物的细化“专员”称谓，首次写部门和姓名即可；例如将“xx部xx专员路人甲”改为“xx部路人甲”。",
     ))
     return results
 

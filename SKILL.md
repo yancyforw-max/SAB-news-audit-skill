@@ -19,7 +19,11 @@ For responsibility information, use semantic matching at the end of the article:
 
 Only reject `集团` when it is used to introduce company leadership, such as `集团副总经理××`; require `总公司` in that context. Allow `集团` in entrepreneurship anniversaries, development history, and other non-leadership contexts.
 
-For people mentioned repeatedly, require the department/unit, complete official position, and full name only at the first introduction. Allow later references to use a concise form such as `路总`, `×总`, or the person's name without repeating the department. Do not flag later concise references as missing a title or department. For non-leaders, require department and name at first mention, then allow the name alone.
+For people mentioned repeatedly, require a leader's department/unit, complete official position, and full name only at the first introduction. Allow later references to use `×总` or another approved concise title without repeating the department. Treat `经理助理` as a manager title in later references: after `xx部经理助理路人甲`, use `路经理`, not `路助理`.
+
+For a person without a management position, require only the department and full name at first mention, then allow the name alone. Do not add an unnecessary detailed `专员` label: change `xx部xx专员路人甲` to `xx部路人甲`. Exclude the four end-credit categories and their names (`文字/撰稿/供稿`, `摄影/摄像/配图/图片`, `编辑/排版`, `审核/审校`) from all people-title checks.
+
+Treat ordinary lifestyle interactions and personal rapport with customers as customer-relationship maintenance, not as privacy disclosure. Allow such content when it does not expose phone numbers, email addresses, addresses, identity credentials, account information, health information, or other directly identifying sensitive data. Do not trigger an internal-warning issue merely because the word `客户` appears.
 
 For `星动态`, determine whether the article is a meeting article from the title's core event. Only a meeting article is checked for meeting name, host, and participant scope in its first substantive paragraph. Leadership visits, inspections, guidance, research visits, and similar event articles are checked against their actual event elements and must not be forced into the meeting template.
 
