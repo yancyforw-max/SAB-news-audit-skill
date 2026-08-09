@@ -38,7 +38,34 @@ _CALLOUT = {
 def _manual_text() -> str:
     """解码内嵌手册全文；不访问文件系统。"""
     compressed = base64.b85decode(_MANUAL_TEXT_B85.encode("ascii"))
-    return zlib.decompress(compressed).decode("utf-8-sig")
+    text = zlib.decompress(compressed).decode("utf-8-sig")
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    # 历次确认后的最终执行口径直接内置，生成手册时同步覆盖旧表述。
+    replacements = (
+        (
+            "【星视频】\n标题中的栏目标签必须与正文核心内容一致。",
+            "【星视频】\n以上五个栏目均允许在固定栏目名后增加副标题，如“【星标杆｜先进工作者】”。\n标题中的栏目标签必须与正文核心内容一致。",
+        ),
+        (
+            "“内部通讯稿，禁止对外转发”\n提示语前后不宜留过多空行，以节约版面。",
+            "“内部通讯稿，禁止对外转发”或意思一致的提示语。提示语只需同时表达“内部使用”和“不得对外传播”两层意思，不限固定句式。\n提示语前后不宜留过多空行，以节约版面。",
+        ),
+        (
+            "文字：\n摄影：\n编辑：\n审核：\n各字段应填写对应责任人。即使同一人承担多项工作，也应按实际责任标注。",
+            "文字、摄影、编辑、审核四类责任信息。允许使用撰稿/供稿、摄影/摄像/配图/图片、编辑/排版/剪辑、审核/审校等含义对应的词语，分隔符形式不限。\n各字段应填写对应责任人。即使同一人承担多项工作，也应按实际责任标注。",
+        ),
+        (
+            "职务表述应做到“高、新、准”：高：使用正式主要职务；\n新：使用最新任命；\n准：完整准确表述。\n\n没有正式任命职务的人员，原则上写“部门或单位＋姓名”。",
+            "职务表述应做到“高、新、准”：高：使用正式主要职务；\n新：使用最新任命；\n准：完整准确表述。\n领导首次出现应写明公司或单位、完整正式职务和姓名。产业总经理助理级及以上领导，包括总经理助理、副总经理、总经理、董事长，无需部门信息，首次使用“产业＋职务＋姓名”。后续可使用符合职务层级的简称。\n\n没有正式任命职务的人员，原则上写“部门或单位＋姓名”。",
+        ),
+        (
+            "稿件中的“集团”原则上统一改为“总公司”。\n领导职务采用“总公司＋正式职务＋姓名”的结构。",
+            "介绍公司领导身份时，应将“集团”改为“总公司”；创业周年、发展历史等非领导身份介绍场景允许使用“集团”。\n领导职务采用“总公司＋正式职务＋姓名”的结构；产业总经理助理级及以上领导按“产业＋正式职务＋姓名”表述。",
+        ),
+    )
+    for old, new in replacements:
+        text = text.replace(old, new)
+    return text
 
 
 def _set_run_font(run, name="宋体", size=10.5, bold=False, color=_INK):
@@ -304,16 +331,99 @@ def _result(rule_id, category, item, status, evidence, basis, tips, level="硬�
     }
 
 
+def _person_first_introduction_issues(body_lines):
+    """识别可由纯文本明确判定的人物首次介绍缺项。"""
+    senior_industry_titles = ("总经理助理", "副总经理", "总经理", "董事长")
+    leader_titles = (
+        "党委副书记", "总经理助理", "副董事长", "副总经理", "总裁助理", "经理助理",
+        "党委书记", "纪委书记", "工会主席", "副总裁", "副部长", "副主任", "副经理",
+        "董事长", "总经理", "总裁", "总监", "部长", "主任", "经理", "主管",
+    )
+    title_pattern = re.compile(
+        r"(?P<title>" + "|".join(map(re.escape, leader_titles)) + r")"
+        r"(?P<name>[\u4e00-\u9fff]{2,4})"
+        r"(?=[，。；、！？]|表示|介绍|指出|认为|负责|参与|开展|完成|分享|汇报|提出|强调|随后|为|与|同|和|$)"
+    )
+    common_surnames = (
+        "赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜"
+        "戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳酆鲍史唐"
+        "费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卞齐康伍余元卜顾孟平黄"
+        "和穆萧尹姚邵湛汪祁毛禹狄米贝明臧计伏成戴谈宋茅庞熊纪舒屈项祝董梁"
+        "杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍"
+        "虞万支柯昝管卢莫经房裘缪干解应宗丁宣邓郁单杭洪包诸左石崔吉龚程嵇"
+        "邢滑裴陆荣翁荀羊惠甄曲封芮储靳汲邴糜松井段富巫乌焦巴弓牧隗山谷车"
+        "侯宓蓬全郗班仰秋仲伊宫宁仇栾暴甘钭厉戎祖武符刘景詹束龙叶幸司韶郜"
+        "黎蓟薄印宿白怀蒲邰从鄂索咸籍赖卓蔺屠蒙池乔阴胥能苍双闻莘党翟谭贡"
+        "劳逄姬申扶堵冉宰郦雍郤璩桑桂濮牛寿通边扈燕冀浦尚农温别庄晏柴瞿阎"
+        "连茹习宦艾鱼容向古易慎戈廖庾终暨居衡步都耿满弘匡国文寇广禄阙东欧"
+        "殳沃利蔚越夔隆师巩厍聂晁勾敖融冷訾辛阚那简饶空曾毋沙乜养鞠须丰巢"
+        "关蒯相查后荆红游竺权逯盖益桓公"
+    )
+    ordinary_pattern = re.compile(
+        rf"(?P<name>[{common_surnames}][\u4e00-\u9fff]{{1,2}})"
+        r"(?=表示|指出|介绍|分享|负责|参与|说道|认为|提到|强调|汇报|提出)"
+    )
+    org_suffix_pattern = re.compile(r"(?:总公司|分公司|事业部|办公室|公司|单位|产业|中心|工厂|厂|部门|部|科)$")
+    excluded_short_titles = ("总", "董", "经理", "主任", "部长", "书记", "主管", "助理")
+
+    introduced = set()
+    issues = []
+    for line in body_lines:
+        leader_matches = list(title_pattern.finditer(line))
+        leader_name_spans = {(match.start("name"), match.end("name")) for match in leader_matches}
+        events = [(match.start(), "leader", match) for match in leader_matches]
+        for match in ordinary_pattern.finditer(line):
+            if (match.start("name"), match.end("name")) not in leader_name_spans:
+                events.append((match.start(), "ordinary", match))
+
+        for _, event_type, match in sorted(events, key=lambda item: item[0]):
+            name = match.group("name")
+            if name in introduced:
+                continue
+            prefix = re.split(r"[。！？；\n]", line[:match.start()])[-1].strip(" ，、：:（）()")
+
+            if event_type == "leader":
+                title = match.group("title")
+                prefix_is_org = bool(org_suffix_pattern.search(prefix))
+                if title in senior_industry_titles and "产业" in prefix:
+                    if not prefix.endswith("产业"):
+                        issues.append(
+                            f"“{prefix}{title}{name}”包含部门层级；产业{title}首次应写为“产业＋{title}＋姓名”"
+                        )
+                    # 产业高层不要求部门，只要求直接以产业名称承接正式职务。
+                elif not prefix_is_org:
+                    issues.append(
+                        f"“{title}{name}”首次出现缺少公司、单位、产业或部门信息"
+                    )
+                introduced.add(name)
+                continue
+
+            if name.endswith(excluded_short_titles):
+                continue
+            if not org_suffix_pattern.search(prefix):
+                issues.append(f"“{name}”首次出现缺少所属部门或单位")
+            introduced.add(name)
+    return issues
+
+
 def _general_checks(article_text, column_type, title, body, lines):
     """执行可由纯文本稳定判断的通用规则。"""
     results = []
     expected_tag = f"【{column_type}】"
+    flexible_tag_columns = set(_VALID_COLUMNS)
+    if column_type in flexible_tag_columns:
+        tag_pattern = rf"^【{re.escape(column_type)}(?:[｜|][^】]+)?】"
+        tag_tip = f"标题开头可使用“{expected_tag}”或“【{column_type}｜副标题】”，并确保栏目与正文一致。"
+    else:
+        tag_pattern = rf"^{re.escape(expected_tag)}"
+        tag_tip = f"在标题开头使用“{expected_tag}”，并确保标签与正文核心内容一致。"
+    tag_ok = bool(re.match(tag_pattern, title))
     results.append(_result(
         "G01", "标题与栏目", "标题栏目标签与指定栏目一致",
-        "通过" if title.startswith(expected_tag) else "不通过",
+        "通过" if tag_ok else "不通过",
         title or "未发现标题",
         "模块2 一、标题栏目标签；模块7 六、标题与摘要检查",
-        f"在标题开头使用“{expected_tag}”，并确保标签与正文核心内容一致。",
+        tag_tip,
     ))
 
     banned = [word for word in ("成功举办", "顺利举办", "成功召开", "顺利召开", "圆满成功") if word in title]
@@ -358,7 +468,12 @@ def _general_checks(article_text, column_type, title, body, lines):
     ))
 
     # “客户”本身可能只是正常客情维护或生活化往来，不作为内部敏感关键词。
-    sensitive_words = [word for word in ("经营", "财务", "人事", "资产", "生产技术", "订单", "市场策略") if word in article_text]
+    sensitive_words = [
+        word for word in (
+            "经营", "财务", "人事", "资产", "生产技术", "订单", "市场策略",
+            "年度", "半年度", "年底", "周年",
+        ) if word in article_text
+    ]
     warning = "内部通讯稿，禁止对外转发"
     warning_ok = _has_internal_warning(article_text)
     results.append(_result(
@@ -386,7 +501,7 @@ def _general_checks(article_text, column_type, title, body, lines):
     credit_aliases = {
         "文字": ("文字", "撰稿", "供稿"),
         "摄影": ("摄影", "摄像", "配图", "图片"),
-        "编辑": ("编辑", "排版"),
+        "编辑": ("编辑", "排版", "剪辑"),
         "审核": ("审核", "审校"),
     }
     credit_fields = [name for name, aliases in credit_aliases.items() if _contains_any(tail_text, aliases)]
@@ -400,21 +515,37 @@ def _general_checks(article_text, column_type, title, body, lines):
 
     body_lines = [line for line in lines[1:] if not _is_credit_line(line)]
     body_for_people = "\n".join(body_lines)
-    person_end = r"(?=[，。；、]|表示|介绍|指出|认为|负责|参与|开展|完成|分享|汇报|提出|随后|为|$)"
+    person_end = r"(?=[，。；、]|表示|介绍|指出|认为|负责|参与|开展|完成|分享|汇报|提出|随后|为|与|同|和|$)"
+
+    redundant_department_hits = [
+        line for line in body_lines
+        if re.search(r"部部门(?=经理助理|副经理助理|副经理|经理|副部长|部长|副主任|主任|主管|专员)", line)
+    ]
+    results.append(_result(
+        "G11", "人物称谓", "部门名称与职务衔接不重复使用“部门”二字",
+        "需整改" if redundant_department_hits else "通过",
+        "；".join(redundant_department_hits[:3]) if redundant_department_hits else "未检出“××部部门＋职务”的重复表述",
+        "模块4 二、姓名和职务；补充执行口径：人物首次介绍",
+        "删除与“××部”重复的“部门”二字；例如将“xx部部门经理助理路人甲”改为“xx部经理助理路人甲”。",
+    ))
 
     wrong_assistant_abbreviations = []
-    assistant_pattern = re.compile(r"经理助理(?P<name>[\u4e00-\u9fff]{2,3})" + person_end)
+    assistant_pattern = re.compile(r"(?P<title>总经理助理|经理助理)(?P<name>[\u4e00-\u9fff]{2,4})" + person_end)
     for match in assistant_pattern.finditer(body_for_people):
         name = match.group("name")
         wrong_abbreviation = name[0] + "助理"
-        if wrong_abbreviation in body_for_people[match.end():]:
-            wrong_assistant_abbreviations.append(f"{name}后文简称为“{wrong_abbreviation}”")
+        expected_abbreviation = name[0] + ("总" if match.group("title") == "总经理助理" else "经理")
+        later_text = body_for_people[match.end():]
+        if wrong_abbreviation in later_text:
+            wrong_assistant_abbreviations.append(
+                f"{match.group('title')}{name}后文简称为“{wrong_abbreviation}”，应称“{expected_abbreviation}”"
+            )
     results.append(_result(
-        "G11", "人物称谓", "经理助理后续简称为“姓＋经理”",
+        "G12", "人物称谓", "经理助理按职务层级使用后续简称",
         "需整改" if wrong_assistant_abbreviations else "通过",
-        "；".join(wrong_assistant_abbreviations[:3]) if wrong_assistant_abbreviations else "未检出经理助理被简称为“姓＋助理”",
+        "；".join(wrong_assistant_abbreviations[:3]) if wrong_assistant_abbreviations else "未检出经理助理或总经理助理被简称为“姓＋助理”",
         "模块4 二、姓名和职务；补充执行口径：人物首次介绍与后续简称",
-        "经理助理首次写明部门、完整职务和姓名，后续使用“姓＋经理”；例如“xx部经理助理路人甲”后文简称“路经理”。",
+        "部门经理助理后续使用“姓＋经理”，如“路经理”；总经理助理后续使用“姓＋总”，如“路总”；均不得称“姓＋助理”。",
     ))
 
     specialist_pattern = re.compile(
@@ -422,11 +553,19 @@ def _general_checks(article_text, column_type, title, body, lines):
     )
     specialist_hits = [line for line in body_lines if specialist_pattern.search(line)]
     results.append(_result(
-        "G12", "人物称谓", "无管理职务人物首次出现仅写部门和姓名",
+        "G13", "人物称谓", "无管理职务人物首次出现仅写部门和姓名",
         "需整改" if specialist_hits else "通过",
         "；".join(specialist_hits[:3]) if specialist_hits else "未检出“部门＋专员称谓＋姓名”的过度介绍",
         "模块4 二、姓名和职务；补充执行口径：普通人物首次介绍",
         "删除无管理职务人物的细化“专员”称谓，首次写部门和姓名即可；例如将“xx部xx专员路人甲”改为“xx部路人甲”。",
+    ))
+    first_intro_issues = _person_first_introduction_issues(body_lines)
+    results.append(_result(
+        "G14", "人物称谓", "人物首次出现使用完整、准确的单位与职务信息",
+        "需整改" if first_intro_issues else "通过",
+        "；".join(first_intro_issues[:5]) if first_intro_issues else "未检出可明确判定的人物首次介绍缺项",
+        "模块4 二、姓名和职务；模块7 八、姓名、职务与组织称谓检查；补充执行口径：产业领导首次介绍",
+        "领导首次写明公司或单位、完整正式职务和姓名；产业总经理助理、副总经理、总经理、董事长无需部门，写“产业＋职务＋姓名”；无管理职务人物首次写部门或单位＋姓名。",
     ))
     return results
 
@@ -506,11 +645,28 @@ def _column_checks(article_text, column_type, title, body):
         "星视频": [
             ("C01", "发布文字包含主题标题和背景说明", ("背景", "主题", "为", "近日"), None, "模块6 六、星视频最低发布结构", "补充栏目标签、主题标题和一句背景说明。"),
             ("C02", "包含必要人物、地点和日期说明", ("月", "日", "在", "于"), None, "模块6 六、星视频最低发布结构", "按内容需要补充人物、地点和日期说明。"),
-            ("C03", "列明摄像、剪辑和审核信息", ("摄像：", "摄影："), ("剪辑：", "审核："), "模块6 六、星视频最低发布结构", "在发布配文末尾补齐文字、摄影或摄像、剪辑、审核信息。"),
+            ("C03", "列明摄影、编辑和审核责任信息", ("摄影", "摄像", "配图", "图片"), ("编辑", "排版", "剪辑", "审核", "审校"), "模块6 六、星视频最低发布结构", "在发布配文末尾补齐文字、摄影或摄像、编辑或剪辑、审核等责任信息；允许同义词，分隔形式不限。"),
         ],
     }
     results = []
     for rule_id, item, required_a, required_b, basis, tips in rules[column_type]:
+        if column_type == "星视频" and rule_id == "C03":
+            tail_text = "\n".join(line.strip() for line in article_text.splitlines() if line.strip())
+            tail_text = "\n".join(tail_text.splitlines()[-20:])
+            groups = {
+                "摄影": ("摄影", "摄像", "配图", "图片"),
+                "编辑": ("编辑", "排版", "剪辑"),
+                "审核": ("审核", "审校"),
+            }
+            found = [name for name, aliases in groups.items() if _contains_any(tail_text, aliases)]
+            missing = [name for name in groups if name not in found]
+            results.append(_result(
+                rule_id, f"{column_type}专属结构", item,
+                "需整改" if missing else "通过",
+                "缺少：" + "、".join(missing) if missing else "已检出摄影、编辑、审核三类责任信息的含义对应词",
+                basis, tips, level="栏目规则",
+            ))
+            continue
         a_ok = _contains_any(article_text, required_a)
         if required_b is None:
             ok = a_ok

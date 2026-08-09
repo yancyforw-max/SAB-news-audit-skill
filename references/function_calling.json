@@ -16,7 +16,7 @@
     "type": "function",
     "function": {
       "name": "review_news_article",
-      "description": "依据《SAB星系列新闻稿统一标准手册》，按指定栏目审核新闻稿，仅返回明确存在的问题、标准依据和修改建议，不生成Word或Excel文件。",
+      "description": "依据《SAB星系列新闻稿统一标准手册》，按指定栏目审核新闻稿纯文本，仅返回明确存在的问题、标准依据和修改建议；不生成Word或Excel文件，不覆盖图片、秀米、PPT、视频画面等视觉与排版审核。",
       "parameters": {
         "type": "object",
         "properties": {
